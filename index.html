@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Care Tracker · TLC Houston Levee</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --navy: #1a2e4a;
+            --navy-mid: #243b5e;
+            --gold: #c9a84c;
+            --gold-light: #e8d08a;
+            --bg: #f0f2f5;
+            --white: #ffffff;
+            --text: #1a2e4a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --sidebar-w: 284px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: var(--navy);
+            color: white;
+            height: 58px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,.35);
+            z-index: 20;
+        }
+        .header h1 { font-size: 17px; font-weight: 700; letter-spacing: -.3px; }
+        .header h1 span { color: var(--gold); }
+        .header-right { display: flex; gap: 8px; align-items: center; }
+
+        /* ── Buttons ── */
+        .btn {
+            padding: 7px 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all .13s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-ghost { background: rgba(255,255,255,.1); color: white; border: 1px solid rgba(255,255,255,.2); }
+        .btn-ghost:hover { background: rgba(255,255,255,.2); }
+        .btn-gold { background: var(--gold); color: var(--navy); font-weight: 600; }
+        .btn-gold:hover { background: var(--gold-light); }
+        .btn-outline { background: white; color: var(--navy); border: 1px solid var(--border); }
+        .btn-outline:hover { background: var(--bg); }
+        .btn-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .btn-danger:hover { background: #fecaca; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        /* ── Layout ── */
+        .app-body { display: flex; flex: 1; overflow: hidden; }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: white;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .sidebar-search { padding: 14px 12px; border-bottom: 1px solid var(--border); }
+        .search-input {
+            width: 100%; padding: 8px 12px;
+            border: 1px solid var(--border); border-radius: 7px;
+            font-size: 13px; outline: none;
+            transition: border-color .15s;
+        }
+        .search-input:focus { border-color: var(--navy); }
+        .sidebar-meta {
+            padding: 9px 14px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+        .count-pill { font-size: 11px; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 10px; }
+        .member-list { flex: 1; overflow-y: auto; padding: 6px 8px 8px; }
+        .member-item {
+            padding: 9px 10px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; gap: 10px; margin-bottom: 1px;
+            transition: background .1s;
+        }
+        .member-item:hover { background: var(--bg); }
+        .member-item.active { background: #e8f0fb; }
+        .avatar {
+            width: 34px; height: 34px; border-radius: 50%;
+            background: var(--navy); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; flex-shrink: 0;
+            letter-spacing: -.5px;
+        }
+        .m-info { flex: 1; min-width: 0; }
+        .m-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .m-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+        .sidebar-footer {
+            border-top: 1px solid var(--border);
+            padding: 10px 12px;
+        }
+        .add-member-btn {
+            width: 100%; padding: 8px;
+            background: none; border: 1px dashed var(--border);
+            border-radius: 7px; cursor: pointer;
+            font-size: 13px; color: var(--muted);
+            transition: all .13s;
+        }
+        .add-member-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--bg); }
+
+        /* ── Main ── */
+        .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+        .empty-state {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            height: 100%; color: var(--muted); text-align: center; padding: 40px;
+        }
+        .empty-icon { font-size: 52px; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+        .empty-state p { font-size: 14px; line-height: 1.6; max-width: 280px; }
+
+        /* ── Detail ── */
+        .detail { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+        .detail-top {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--border);
+        }
+        .detail-identity { display: flex; align-items: center; gap: 16px; }
+        .detail-avatar {
+            width: 54px; height: 54px; border-radius: 50%;
+            background: var(--navy); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700; flex-shrink: 0;
+        }
+        .detail-name { font-size: 22px; font-weight: 700; margin-bottom: 3px; }
+        .detail-loc { font-size: 13px; color: var(--muted); }
+        .detail-btns { display: flex; gap: 8px; }
+
+        /* ── Stats ── */
+        .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+        .stat {
+            background: white; border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px;
+        }
+        .stat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+        .stat-val { font-size: 22px; font-weight: 700; }
+        .stat-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        /* ── Section card ── */
+        .card { background: white; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 18px; }
+        .card-head {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-title { font-size: 14px; font-weight: 600; }
+        .card-body { padding: 16px 20px; }
+
+        /* ── Follow-up items (summary) ── */
+        .fu-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+        .fu-item:last-child { border-bottom: none; }
+        .fu-from { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+        /* ── Meeting entries ── */
+        .meeting-card {
+            border: 1px solid var(--border); border-radius: 9px;
+            margin-bottom: 10px; overflow: hidden;
+        }
+        .meeting-head {
+            padding: 13px 16px; background: #f8fafc;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; user-select: none;
+        }
+        .meeting-head:hover { background: #f1f5f9; }
+        .meeting-date-row { display: flex; align-items: center; gap: 6px; }
+        .m-date { font-size: 13px; font-weight: 600; }
+        .m-time { font-size: 12px; color: var(--muted); }
+        .meeting-actions { display: flex; gap: 6px; }
+        .meeting-body { padding: 16px; }
+        .field { margin-bottom: 14px; }
+        .field:last-child { margin-bottom: 0; }
+        .field-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 5px; }
+        .field-val { font-size: 13px; line-height: 1.65; }
+
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 12px; font-weight: 500;
+        }
+        .badge-yes { background: #dcfce7; color: #166534; }
+        .badge-no { background: #fee2e2; color: #991b1b; }
+        .badge-interested { background: #fef3c7; color: #92400e; }
+        .badge-unknown { background: #f1f5f9; color: var(--muted); }
+
+        .action-row { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+        .action-row:last-child { border-bottom: none; }
+        .cb { width: 15px; height: 15px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--navy); }
+        .action-txt { font-size: 13px; line-height: 1.5; }
+        .action-txt.done { text-decoration: line-through; color: var(--muted); }
+
+        .no-meetings { text-align: center; padding: 36px 20px; color: var(--muted); }
+        .no-meetings p { margin-bottom: 14px; font-size: 14px; }
+
+        /* ── Modal ── */
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; padding: 20px;
+        }
+        .hidden { display: none !important; }
+        .modal {
+            background: white; border-radius: 14px;
+            width: 100%; max-width: 580px; max-height: 92vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 64px rgba(0,0,0,.3);
+        }
+        .modal-head {
+            padding: 18px 22px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; background: white; z-index: 1;
+        }
+        .modal-title { font-size: 15px; font-weight: 600; }
+        .modal-x {
+            background: none; border: none; font-size: 22px;
+            cursor: pointer; color: var(--muted);
+            width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px; line-height: 1;
+        }
+        .modal-x:hover { background: var(--bg); }
+        .modal-body { padding: 22px; }
+        .modal-foot {
+            padding: 14px 22px; border-top: 1px solid var(--border);
+            display: flex; justify-content: flex-end; gap: 8px;
+            position: sticky; bottom: 0; background: white;
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-lbl { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin-bottom: 6px; }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 9px 12px;
+            border: 1px solid var(--border); border-radius: 7px;
+            font-size: 13px; font-family: inherit; outline: none;
+            color: var(--text); background: white;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(26,46,74,.08);
+        }
+        .form-textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+
+        .action-editor { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+        .action-edit-row { display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+        .action-edit-row:last-child { border-bottom: none; }
+        .action-edit-input { flex: 1; padding: 9px 12px; border: none; font-size: 13px; font-family: inherit; outline: none; }
+        .action-rm { padding: 0 10px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 18px; height: 36px; }
+        .action-rm:hover { color: #991b1b; }
+        .add-action-row { padding: 8px 12px; background: var(--bg); cursor: pointer; font-size: 13px; color: var(--muted); border: none; width: 100%; text-align: left; }
+        .add-action-row:hover { color: var(--navy); }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; bottom: 22px; right: 22px;
+            background: var(--navy); color: white;
+            padding: 11px 18px; border-radius: 8px;
+            font-size: 13px; z-index: 200;
+            animation: slideUp .2s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,.2);
+        }
+        @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <h1>Team Care <span>Tracker</span></h1>
+    <div class="header-right">
+        <button class="btn btn-ghost" onclick="exportData()">↓ Export</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">↑ Import</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+</div>
+
+<div class="app-body">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-search">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search members…" oninput="filterMembers(this.value)">
+        </div>
+        <div class="sidebar-meta">
+            <span class="sidebar-label">Team Members</span>
+            <span class="count-pill" id="memberCount">0</span>
+        </div>
+        <div class="member-list" id="memberList"></div>
+        <div class="sidebar-footer">
+            <button class="add-member-btn" onclick="openAddMember()">+ Add Team Member</button>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main" id="main">
+        <div class="empty-state">
+            <div class="empty-icon">🤝</div>
+            <h3>Select a team member</h3>
+            <p>Pick someone from the list to view their care record and log conversations.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Meeting Modal -->
+<div class="overlay hidden" id="meetingOverlay">
+    <div class="modal">
+        <div class="modal-head">
+            <span class="modal-title" id="meetingModalTitle">Log Meeting</span>
+            <button class="modal-x" onclick="closeMeetingModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editMeetingId">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-lbl">Date</label>
+                    <input type="date" class="form-input" id="mDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-lbl">Time</label>
+                    <input type="time" class="form-input" id="mTime">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-lbl">Conversation Notes</label>
+                <textarea class="form-textarea" id="mNotes" rows="4" placeholder="What did you talk about?"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-lbl">Prayer Needs</label>
+                <textarea class="form-textarea" id="mPrayer" rows="3" placeholder="Any specific prayer requests?"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-lbl">Next Steps / Recommendations</label>
+                <textarea class="form-textarea" id="mNextSteps" rows="3" placeholder="What are the recommended next steps?"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-lbl">Life Group Attendance</label>
+                <select class="form-select" id="mLifeGroup">
+                    <option value="unknown">— Unknown</option>
+                    <option value="yes">✅ Yes — currently attending</option>
+                    <option value="no">❌ No — not currently attending</option>
+                    <option value="interested">🙋 Interested but not yet</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-lbl">Follow-up Actions</label>
+                <div class="action-editor" id="actionEditor">
+                    <button class="add-action-row" onclick="addActionRow()">+ Add a follow-up action</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-outline" onclick="closeMeetingModal()">Cancel</button>
+            <button class="btn btn-gold" onclick="saveMeeting()">Save Entry</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Member Modal -->
+<div class="overlay hidden" id="addMemberOverlay">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-head">
+            <span class="modal-title">Add Team Member</span>
+            <button class="modal-x" onclick="closeAddMember()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-lbl">Full Name</label>
+                <input type="text" class="form-input" id="newName" placeholder="First Last">
+            </div>
+            <div class="form-group">
+                <label class="form-lbl">Location / Campus</label>
+                <input type="text" class="form-input" id="newLocation" value="Houston Levee">
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-outline" onclick="closeAddMember()">Cancel</button>
+            <button class="btn btn-gold" onclick="saveNewMember()">Add Member</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Seed data ──────────────────────────────────────────────────────────────
+const SEED_NAMES = [
+    "Albert Cannon","Alexis Jackson","Annie Hess","Anthony Akinbami",
+    "Brian Pier","Brittany Thomas","Bryce Horton","Bryan Artiles",
+    "Bryant Gilabert","Cameron McLemore","Cassie Payne","Chavez Nelson",
+    "Charles (Levell) Hairston","Charles Hairston","Christian Matheny",
+    "Daniel Pritchett","Darin Harper","Eddie Hill Jr.","Grayton Faust",
+    "Greg Blanchard","Isaiah Douglas","Isaiah Martinez","James Smith",
+    "Jay Nyindodo","Jon Franklin Jones","Keiyoma Dabney","Kenneth Montgomery",
+    "Kristyn Martin","Lillie Auguillard","Loren Clark","Luke Modin",
+    "Mark Freeman","Marvin Palmer","Monicah Bwayi","Niaya Holman",
+    "Porscha Hudson","Rhoda Gatamah","Ricki Fitzpatrick","Samina Russell",
+    "Sean Faust","Steven Williams","Terence Johnson","Terilyn McChriston",
+    "Tiffani Denham","Travis Yu","Trevor Gore","Trinity Robertson",
+    "Wendy Smith","William Perry","Yaw Nyanteh","Zakiya Cherry"
+];
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+const initials = n => n.split(' ').slice(0,2).map(w => w[0] || '').join('').toUpperCase();
+
+function avatarBg(name) {
+    const palette = ['#1a2e4a','#1e3a5f','#243b5e','#1b3353','#2a3f60','#182a44'];
+    let h = 0; for (const c of name) h = (h*31 + c.charCodeAt(0)) >>> 0;
+    return palette[h % palette.length];
+}
+
+const fmtDate = d => {
+    if (!d) return '';
+    return new Date(d + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+};
+
+const fmtTime = t => {
+    if (!t) return '';
+    const [h,m] = t.split(':'); const hr = +h;
+    return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+};
+
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+const escAttr = s => String(s||'').replace(/"/g,'&quot;');
+
+// ── Data ───────────────────────────────────────────────────────────────────
+function load() {
+    const raw = localStorage.getItem('tlc_care_v1');
+    if (raw) return JSON.parse(raw);
+    const d = { members: SEED_NAMES.map(name => ({ id: uid(), name, location: 'Houston Levee', meetings: [] })) };
+    save(d); return d;
+}
+function save(d) { localStorage.setItem('tlc_care_v1', JSON.stringify(d)); }
+
+let data = load();
+let activeId = null;
+let searchQ = '';
+let modalMemberId = null;
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+function renderSidebar() {
+    const q = searchQ.toLowerCase();
+    const filtered = data.members.filter(m => m.name.toLowerCase().includes(q));
+    document.getElementById('memberCount').textContent = filtered.length;
+
+    document.getElementById('memberList').innerHTML = filtered.map(m => {
+        const last = lastMeeting(m);
+        const openFU = openFollowUps(m).length;
+        return `<div class="member-item${m.id === activeId ? ' active' : ''}" onclick="selectMember('${m.id}')">
+            <div class="avatar" style="background:${avatarBg(m.name)}">${initials(m.name)}</div>
+            <div class="m-info">
+                <div class="m-name">${m.name}</div>
+                <div class="m-sub">${last ? 'Last: ' + fmtDate(last.date) : 'No meetings yet'}</div>
+            </div>
+            ${openFU ? `<div class="dot" title="${openFU} open action${openFU>1?'s':''}"></div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function filterMembers(q) { searchQ = q; renderSidebar(); }
+
+function lastMeeting(m) {
+    return m.meetings.slice().sort((a,b) => new Date(b.date)-new Date(a.date))[0] || null;
+}
+
+function openFollowUps(m) {
+    const out = [];
+    m.meetings.forEach(mt => (mt.followUpActions||[]).forEach(a => { if (!a.completed) out.push({...a, meetingDate: mt.date}); }));
+    return out;
+}
+
+// ── Detail view ────────────────────────────────────────────────────────────
+function selectMember(id) {
+    activeId = id;
+    renderSidebar();
+    renderDetail(id);
+}
+
+function renderDetail(id) {
+    const m = data.members.find(x => x.id === id);
+    if (!m) return;
+
+    const sorted = m.meetings.slice().sort((a,b) => new Date(b.date)-new Date(a.date));
+    const fus = openFollowUps(m);
+    const lgStatus = latestLG(m);
+
+    document.getElementById('main').innerHTML = `<div class="detail">
+        <div class="detail-top">
+            <div class="detail-identity">
+                <div class="detail-avatar" style="background:${avatarBg(m.name)}">${initials(m.name)}</div>
+                <div>
+                    <div class="detail-name">${m.name}</div>
+                    <div class="detail-loc">📍 ${m.location || 'No location set'}</div>
+                </div>
+            </div>
+            <div class="detail-btns">
+                <button class="btn btn-outline btn-sm" onclick="editMemberInfo('${m.id}')">Edit</button>
+                <button class="btn btn-gold btn-sm" onclick="openMeetingModal('${m.id}')">+ Log Meeting</button>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-lbl">Total Meetings</div>
+                <div class="stat-val">${m.meetings.length}</div>
+                <div class="stat-hint">logged conversations</div>
+            </div>
+            <div class="stat">
+                <div class="stat-lbl">Open Follow-ups</div>
+                <div class="stat-val" style="color:${fus.length ? '#c9a84c' : '#16a34a'}">${fus.length}</div>
+                <div class="stat-hint">action items pending</div>
+            </div>
+            <div class="stat">
+                <div class="stat-lbl">Life Group</div>
+                <div class="stat-val" style="font-size:14px;padding-top:5px">${lgStatus}</div>
+                <div class="stat-hint">most recent status</div>
+            </div>
+        </div>
+
+        ${fus.length ? `<div class="card">
+            <div class="card-head">
+                <span class="card-title">Open Follow-up Actions</span>
+                <span style="font-size:12px;color:var(--muted)">${fus.length} pending</span>
+            </div>
+            <div class="card-body" style="padding: 4px 20px">
+                ${fus.map(a => `<div class="fu-item">
+                    <input type="checkbox" class="cb" onchange="toggleAction('${m.id}','${a.id}',this.checked)">
+                    <div>
+                        <div class="action-txt">${esc(a.text)}</div>
+                        <div class="fu-from">From meeting: ${fmtDate(a.meetingDate)}</div>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>` : ''}
+
+        <div class="card">
+            <div class="card-head">
+                <span class="card-title">Care Log</span>
+                <button class="btn btn-gold btn-sm" onclick="openMeetingModal('${m.id}')">+ Log Meeting</button>
+            </div>
+            ${sorted.length ? `<div class="card-body" style="padding:12px 20px">
+                ${sorted.map(mt => meetingHTML(m.id, mt)).join('')}
+            </div>` : `<div class="no-meetings">
+                <p>No meetings logged yet.</p>
+                <button class="btn btn-gold" onclick="openMeetingModal('${m.id}')">Log First Meeting</button>
+            </div>`}
+        </div>
+    </div>`;
+}
+
+function latestLG(m) {
+    const sorted = m.meetings.slice().sort((a,b) => new Date(b.date)-new Date(a.date));
+    for (const mt of sorted) {
+        const v = mt.lifeGroupAttendance;
+        if (v && v !== 'unknown') {
+            return {yes:'✅ Attending', no:'❌ Not attending', interested:'🙋 Interested'}[v] || '—';
+        }
+    }
+    return '—';
+}
+
+function meetingHTML(memberId, mt) {
+    const lgClass = {yes:'badge-yes',no:'badge-no',interested:'badge-interested',unknown:'badge-unknown'}[mt.lifeGroupAttendance] || 'badge-unknown';
+    const lgLabel = {yes:'Attending',no:'Not Attending',interested:'Interested',unknown:'Unknown'}[mt.lifeGroupAttendance] || 'Unknown';
+    const actions = mt.followUpActions || [];
+
+    return `<div class="meeting-card">
+        <div class="meeting-head" onclick="toggleMeeting('mb-${mt.id}')">
+            <div class="meeting-date-row">
+                <span class="m-date">${fmtDate(mt.date)}</span>
+                ${mt.time ? `<span class="m-time">· ${fmtTime(mt.time)}</span>` : ''}
+            </div>
+            <div class="meeting-actions">
+                <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();editMeeting('${memberId}','${mt.id}')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteMeeting('${memberId}','${mt.id}')">Delete</button>
+            </div>
+        </div>
+        <div class="meeting-body hidden" id="mb-${mt.id}">
+            ${mt.notes ? `<div class="field"><div class="field-lbl">Conversation Notes</div><div class="field-val">${esc(mt.notes)}</div></div>` : ''}
+            ${mt.prayerNeeds ? `<div class="field"><div class="field-lbl">Prayer Needs</div><div class="field-val">${esc(mt.prayerNeeds)}</div></div>` : ''}
+            ${mt.nextSteps ? `<div class="field"><div class="field-lbl">Next Steps</div><div class="field-val">${esc(mt.nextSteps)}</div></div>` : ''}
+            <div class="field">
+                <div class="field-lbl">Life Group</div>
+                <span class="badge ${lgClass}">${lgLabel}</span>
+            </div>
+            ${actions.length ? `<div class="field">
+                <div class="field-lbl">Follow-up Actions</div>
+                ${actions.map(a => `<div class="action-row">
+                    <input type="checkbox" class="cb" ${a.completed?'checked':''} onchange="toggleAction('${memberId}','${a.id}',this.checked)">
+                    <span class="action-txt${a.completed?' done':''}">${esc(a.text)}</span>
+                </div>`).join('')}
+            </div>` : ''}
+        </div>
+    </div>`;
+}
+
+function toggleMeeting(id) {
+    document.getElementById(id)?.classList.toggle('hidden');
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+function toggleAction(memberId, actionId, checked) {
+    const m = data.members.find(x => x.id === memberId);
+    m.meetings.forEach(mt => {
+        const a = (mt.followUpActions||[]).find(a => a.id === actionId);
+        if (a) a.completed = checked;
+    });
+    save(data);
+    renderSidebar();
+    renderDetail(memberId);
+}
+
+function editMemberInfo(memberId) {
+    const m = data.members.find(x => x.id === memberId);
+    const name = prompt('Name:', m.name); if (name === null) return;
+    const loc = prompt('Location / Campus:', m.location); if (loc === null) return;
+    if (name.trim()) m.name = name.trim();
+    if (loc.trim()) m.location = loc.trim();
+    save(data);
+    renderSidebar();
+    renderDetail(memberId);
+    toast('Member updated');
+}
+
+function deleteMeeting(memberId, meetingId) {
+    if (!confirm('Delete this meeting entry?')) return;
+    const m = data.members.find(x => x.id === memberId);
+    m.meetings = m.meetings.filter(mt => mt.id !== meetingId);
+    save(data);
+    renderSidebar();
+    renderDetail(memberId);
+    toast('Meeting deleted');
+}
+
+// ── Meeting modal ──────────────────────────────────────────────────────────
+function openMeetingModal(memberId, meetingId) {
+    modalMemberId = memberId;
+    document.getElementById('editMeetingId').value = meetingId || '';
+    document.getElementById('meetingModalTitle').textContent = meetingId ? 'Edit Meeting' : 'Log Meeting';
+
+    const today = new Date().toISOString().split('T')[0];
+
+    if (meetingId) {
+        const m = data.members.find(x => x.id === memberId);
+        const mt = m.meetings.find(x => x.id === meetingId);
+        document.getElementById('mDate').value = mt.date || today;
+        document.getElementById('mTime').value = mt.time || '';
+        document.getElementById('mNotes').value = mt.notes || '';
+        document.getElementById('mPrayer').value = mt.prayerNeeds || '';
+        document.getElementById('mNextSteps').value = mt.nextSteps || '';
+        document.getElementById('mLifeGroup').value = mt.lifeGroupAttendance || 'unknown';
+        buildActionEditor(mt.followUpActions || []);
+    } else {
+        document.getElementById('mDate').value = today;
+        document.getElementById('mTime').value = '';
+        document.getElementById('mNotes').value = '';
+        document.getElementById('mPrayer').value = '';
+        document.getElementById('mNextSteps').value = '';
+        document.getElementById('mLifeGroup').value = 'unknown';
+        buildActionEditor([]);
+    }
+    document.getElementById('meetingOverlay').classList.remove('hidden');
+}
+
+function closeMeetingModal() {
+    document.getElementById('meetingOverlay').classList.add('hidden');
+    modalMemberId = null;
+}
+
+function buildActionEditor(actions) {
+    const ed = document.getElementById('actionEditor');
+    ed.innerHTML = '';
+    actions.forEach(a => addActionRow(a.text, a.id));
+    const btn = document.createElement('button');
+    btn.className = 'add-action-row';
+    btn.textContent = '+ Add a follow-up action';
+    btn.onclick = () => addActionRow();
+    ed.appendChild(btn);
+}
+
+function addActionRow(text = '', id = '') {
+    const ed = document.getElementById('actionEditor');
+    const addBtn = ed.querySelector('.add-action-row');
+    const row = document.createElement('div');
+    row.className = 'action-edit-row';
+    row.dataset.aid = id || uid();
+    row.innerHTML = `<input class="action-edit-input" placeholder="e.g. Follow up about Life Group sign-up" value="${escAttr(text)}">
+        <button class="action-rm" onclick="this.parentElement.remove()">×</button>`;
+    ed.insertBefore(row, addBtn);
+    row.querySelector('input').focus();
+}
+
+function saveMeeting() {
+    const date = document.getElementById('mDate').value;
+    if (!date) { toast('Please choose a date'); return; }
+
+    const rows = document.querySelectorAll('#actionEditor .action-edit-row');
+    const followUpActions = Array.from(rows).map(r => ({
+        id: r.dataset.aid, text: r.querySelector('input').value.trim(), completed: false
+    })).filter(a => a.text);
+
+    const memberId = modalMemberId;
+    const meetingId = document.getElementById('editMeetingId').value;
+    const m = data.members.find(x => x.id === memberId);
+
+    const payload = {
+        date, time: document.getElementById('mTime').value,
+        notes: document.getElementById('mNotes').value,
+        prayerNeeds: document.getElementById('mPrayer').value,
+        nextSteps: document.getElementById('mNextSteps').value,
+        lifeGroupAttendance: document.getElementById('mLifeGroup').value,
+        followUpActions
+    };
+
+    if (meetingId) {
+        const mt = m.meetings.find(x => x.id === meetingId);
+        // preserve existing completed states
+        (mt.followUpActions||[]).forEach(old => {
+            const neu = payload.followUpActions.find(a => a.id === old.id);
+            if (neu) neu.completed = old.completed;
+        });
+        Object.assign(mt, payload);
+    } else {
+        m.meetings.push({ id: uid(), ...payload });
+    }
+
+    save(data);
+    closeMeetingModal();
+    renderSidebar();
+    renderDetail(memberId);
+    toast(meetingId ? 'Meeting updated' : 'Meeting saved');
+}
+
+// ── Add member ─────────────────────────────────────────────────────────────
+function openAddMember() {
+    document.getElementById('newName').value = '';
+    document.getElementById('newLocation').value = 'Houston Levee';
+    document.getElementById('addMemberOverlay').classList.remove('hidden');
+    setTimeout(() => document.getElementById('newName').focus(), 60);
+}
+
+function closeAddMember() { document.getElementById('addMemberOverlay').classList.add('hidden'); }
+
+function saveNewMember() {
+    const name = document.getElementById('newName').value.trim();
+    if (!name) { toast('Please enter a name'); return; }
+    const location = document.getElementById('newLocation').value.trim() || 'Houston Levee';
+    const newM = { id: uid(), name, location, meetings: [] };
+    data.members.push(newM);
+    data.members.sort((a,b) => a.name.localeCompare(b.name));
+    save(data);
+    closeAddMember();
+    renderSidebar();
+    selectMember(newM.id);
+    toast(`${name} added`);
+}
+
+// ── Export / Import ────────────────────────────────────────────────────────
+function exportData() {
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const a = Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(blob),
+        download: `team-care-${new Date().toISOString().slice(0,10)}.json`
+    });
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Data exported');
+}
+
+function importData(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        try {
+            const imp = JSON.parse(ev.target.result);
+            if (!imp.members) throw new Error();
+            if (!confirm(`Import ${imp.members.length} members? This will replace all current data.`)) return;
+            data = imp; save(data); activeId = null;
+            renderSidebar();
+            document.getElementById('main').innerHTML = `<div class="empty-state">
+                <div class="empty-icon">✅</div><h3>Import successful</h3>
+                <p>Select a team member to continue.</p></div>`;
+            toast('Data imported');
+        } catch { toast('Import failed — invalid file'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg) {
+    document.querySelector('.toast')?.remove();
+    const t = document.createElement('div');
+    t.className = 'toast'; t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+}
+
+// ── Close overlays on backdrop click ──────────────────────────────────────
+document.getElementById('meetingOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeMeetingModal(); });
+document.getElementById('addMemberOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeAddMember(); });
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+renderSidebar();
+</script>
+</body>
+</html>
