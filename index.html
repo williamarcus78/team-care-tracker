@@ -283,6 +283,24 @@
         .add-action-row { padding: 8px 12px; background: var(--bg); cursor: pointer; font-size: 13px; color: var(--muted); border: none; width: 100%; text-align: left; }
         .add-action-row:hover { color: var(--navy); }
 
+        /* ── Photo avatar ── */
+        .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+        .detail-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+        .detail-avatar-wrap { position: relative; cursor: pointer; flex-shrink: 0; }
+        .detail-avatar-wrap .photo-overlay {
+            position: absolute; inset: 0; border-radius: 50%;
+            background: rgba(0,0,0,.45); color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 13px; opacity: 0; transition: opacity .15s; gap: 2px;
+        }
+        .detail-avatar-wrap:hover .photo-overlay { opacity: 1; }
+        .photo-overlay span { font-size: 18px; line-height: 1; }
+        .remove-photo-btn {
+            font-size: 11px; color: var(--muted); background: none; border: none;
+            cursor: pointer; margin-top: 4px; padding: 0; text-decoration: underline;
+        }
+        .remove-photo-btn:hover { color: #991b1b; }
+
         /* ── Scrollbar ── */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -309,6 +327,7 @@
         <button class="btn btn-ghost" onclick="exportData()">↓ Export</button>
         <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">↑ Import</button>
         <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+        <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
     </div>
 </div>
 
@@ -483,7 +502,7 @@ function renderSidebar() {
         const last = lastMeeting(m);
         const openFU = openFollowUps(m).length;
         return `<div class="member-item${m.id === activeId ? ' active' : ''}" onclick="selectMember('${m.id}')">
-            <div class="avatar" style="background:${avatarBg(m.name)}">${initials(m.name)}</div>
+            <div class="avatar" style="background:${avatarBg(m.name)}">${m.photo ? `<img src="${m.photo}" alt="${m.name}">` : initials(m.name)}</div>
             <div class="m-info">
                 <div class="m-name">${m.name}</div>
                 <div class="m-sub">${last ? 'Last: ' + fmtDate(last.date) : 'No meetings yet'}</div>
@@ -523,10 +542,14 @@ function renderDetail(id) {
     document.getElementById('main').innerHTML = `<div class="detail">
         <div class="detail-top">
             <div class="detail-identity">
-                <div class="detail-avatar" style="background:${avatarBg(m.name)}">${initials(m.name)}</div>
+                <div class="detail-avatar-wrap" onclick="triggerPhotoUpload('${m.id}')" title="Click to upload photo">
+                    <div class="detail-avatar" style="background:${m.photo ? 'transparent' : avatarBg(m.name)}">${m.photo ? `<img src="${m.photo}" alt="${m.name}">` : initials(m.name)}</div>
+                    <div class="photo-overlay"><span>📷</span>${m.photo ? '<small>change</small>' : '<small>add photo</small>'}</div>
+                </div>
                 <div>
                     <div class="detail-name">${m.name}</div>
                     <div class="detail-loc">📍 ${m.location || 'No location set'}</div>
+                    ${m.photo ? `<button class="remove-photo-btn" onclick="removePhoto('${m.id}')">Remove photo</button>` : ''}
                 </div>
             </div>
             <div class="detail-btns">
@@ -820,6 +843,38 @@ function importData(e) {
     };
     reader.readAsText(file);
     e.target.value = '';
+}
+
+// ── Photo upload ───────────────────────────────────────────────────────────
+let photoUploadMemberId = null;
+
+function triggerPhotoUpload(memberId) {
+    photoUploadMemberId = memberId;
+    document.getElementById('photoInput').click();
+}
+
+function handlePhotoUpload(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+        const m = data.members.find(x => x.id === photoUploadMemberId);
+        m.photo = ev.target.result;
+        save(data);
+        renderSidebar();
+        renderDetail(photoUploadMemberId);
+        toast('Photo updated');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+}
+
+function removePhoto(memberId) {
+    const m = data.members.find(x => x.id === memberId);
+    delete m.photo;
+    save(data);
+    renderSidebar();
+    renderDetail(memberId);
+    toast('Photo removed');
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
