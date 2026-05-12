@@ -301,6 +301,54 @@
         }
         .remove-photo-btn:hover { color: #991b1b; }
 
+        /* ── Photo action menu ── */
+        .photo-menu {
+            position: fixed; z-index: 150;
+            background: white; border: 1px solid var(--border);
+            border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+            overflow: hidden; min-width: 160px;
+            animation: fadeIn .12s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+        .photo-menu-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 16px; font-size: 13px; cursor: pointer;
+            border: none; background: none; width: 100%; text-align: left; color: var(--text);
+        }
+        .photo-menu-item:hover { background: var(--bg); }
+        .photo-menu-item.danger { color: #991b1b; }
+        .photo-menu-item.danger:hover { background: #fee2e2; }
+        .photo-menu-sep { height: 1px; background: var(--border); margin: 2px 0; }
+
+        /* ── Crop modal ── */
+        .crop-canvas-wrap {
+            display: flex; justify-content: center; align-items: center;
+            background: #1a1a1a; border-radius: 10px; overflow: hidden;
+            margin-bottom: 16px; cursor: grab; user-select: none;
+        }
+        .crop-canvas-wrap:active { cursor: grabbing; }
+        #cropCanvas { display: block; touch-action: none; }
+        .crop-hint { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+        .zoom-row { display: flex; align-items: center; gap: 10px; }
+        .zoom-lbl { font-size: 12px; color: var(--muted); white-space: nowrap; }
+        .zoom-slider { flex: 1; accent-color: var(--navy); cursor: pointer; }
+
+        /* ── Lightbox ── */
+        .lightbox {
+            position: fixed; inset: 0; z-index: 300;
+            background: rgba(0,0,0,.88);
+            display: flex; align-items: center; justify-content: center;
+            animation: fadeIn .15s ease;
+        }
+        .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 10px; box-shadow: 0 12px 48px rgba(0,0,0,.6); }
+        .lightbox-close {
+            position: absolute; top: 20px; right: 24px;
+            background: rgba(255,255,255,.15); border: none; color: white;
+            font-size: 28px; width: 44px; height: 44px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .lightbox-close:hover { background: rgba(255,255,255,.25); }
+
         /* ── Scrollbar ── */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -407,6 +455,30 @@
         <div class="modal-foot">
             <button class="btn btn-outline" onclick="closeMeetingModal()">Cancel</button>
             <button class="btn btn-gold" onclick="saveMeeting()">Save Entry</button>
+        </div>
+    </div>
+</div>
+
+<!-- Crop Modal -->
+<div class="overlay hidden" id="cropOverlay">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-head">
+            <span class="modal-title">Crop Photo</span>
+            <button class="modal-x" onclick="closeCropModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="crop-canvas-wrap" id="cropWrap">
+                <canvas id="cropCanvas" width="300" height="300"></canvas>
+            </div>
+            <p class="crop-hint">Drag to reposition · Scroll or use slider to zoom</p>
+            <div class="zoom-row">
+                <span class="zoom-lbl">🔍 Zoom</span>
+                <input type="range" class="zoom-slider" id="zoomSlider" min="50" max="300" value="100" oninput="onZoomSlider(this.value)">
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn btn-outline" onclick="closeCropModal()">Cancel</button>
+            <button class="btn btn-gold" onclick="applyCrop()">Apply Crop</button>
         </div>
     </div>
 </div>
@@ -845,36 +917,233 @@ function importData(e) {
     e.target.value = '';
 }
 
-// ── Photo upload ───────────────────────────────────────────────────────────
-let photoUploadMemberId = null;
+// ── Photo menu ─────────────────────────────────────────────────────────────
+let photoMemberId = null;
 
 function triggerPhotoUpload(memberId) {
-    photoUploadMemberId = memberId;
+    const m = data.members.find(x => x.id === memberId);
+    if (m.photo) {
+        showPhotoMenu(memberId);
+    } else {
+        photoMemberId = memberId;
+        document.getElementById('photoInput').click();
+    }
+}
+
+function showPhotoMenu(memberId) {
+    closePhotoMenu();
+    photoMemberId = memberId;
+    const wrap = document.querySelector('.detail-avatar-wrap');
+    const rect = wrap.getBoundingClientRect();
+
+    const menu = document.createElement('div');
+    menu.className = 'photo-menu';
+    menu.id = 'photoMenu';
+    menu.style.top = (rect.bottom + 8) + 'px';
+    menu.style.left = rect.left + 'px';
+    menu.innerHTML = `
+        <button class="photo-menu-item" onclick="viewPhoto('${memberId}')">🔍 View photo</button>
+        <button class="photo-menu-item" onclick="changePhoto('${memberId}')">📷 Change photo</button>
+        <div class="photo-menu-sep"></div>
+        <button class="photo-menu-item danger" onclick="removePhoto('${memberId}')">✕ Remove photo</button>`;
+    document.body.appendChild(menu);
+    setTimeout(() => document.addEventListener('click', closePhotoMenu, { once: true }), 0);
+}
+
+function closePhotoMenu() {
+    document.getElementById('photoMenu')?.remove();
+}
+
+function changePhoto(memberId) {
+    closePhotoMenu();
+    photoMemberId = memberId;
     document.getElementById('photoInput').click();
 }
 
-function handlePhotoUpload(e) {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-        const m = data.members.find(x => x.id === photoUploadMemberId);
-        m.photo = ev.target.result;
-        save(data);
-        renderSidebar();
-        renderDetail(photoUploadMemberId);
-        toast('Photo updated');
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+function viewPhoto(memberId) {
+    closePhotoMenu();
+    const m = data.members.find(x => x.id === memberId);
+    if (!m.photo) return;
+    const lb = document.createElement('div');
+    lb.className = 'lightbox';
+    lb.id = 'lightbox';
+    lb.innerHTML = `<button class="lightbox-close" onclick="document.getElementById('lightbox').remove()">×</button>
+        <img src="${m.photo}" alt="${m.name}">`;
+    lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+    document.body.appendChild(lb);
 }
 
 function removePhoto(memberId) {
+    closePhotoMenu();
     const m = data.members.find(x => x.id === memberId);
     delete m.photo;
     save(data);
     renderSidebar();
     renderDetail(memberId);
     toast('Photo removed');
+}
+
+// ── File input handler ─────────────────────────────────────────────────────
+function handlePhotoUpload(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => openCropModal(ev.target.result, photoMemberId);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+}
+
+// ── Crop ───────────────────────────────────────────────────────────────────
+const crop = { img: null, scale: 1, minScale: 0.5, x: 0, y: 0, dragging: false, startX: 0, startY: 0, lastX: 0, lastY: 0, memberId: null, SIZE: 300 };
+
+function openCropModal(src, memberId) {
+    crop.memberId = memberId;
+    crop.img = new Image();
+    crop.img.onload = () => {
+        const s = crop.SIZE;
+        const ratio = Math.max(s / crop.img.width, s / crop.img.height);
+        crop.scale = ratio;
+        crop.minScale = ratio;
+        crop.x = (s - crop.img.width * ratio) / 2;
+        crop.y = (s - crop.img.height * ratio) / 2;
+        document.getElementById('zoomSlider').value = 100;
+        drawCrop();
+        document.getElementById('cropOverlay').classList.remove('hidden');
+        attachCropEvents();
+    };
+    crop.img.src = src;
+}
+
+function closeCropModal() {
+    document.getElementById('cropOverlay').classList.add('hidden');
+    detachCropEvents();
+}
+
+function drawCrop() {
+    const canvas = document.getElementById('cropCanvas');
+    const ctx = canvas.getContext('2d');
+    const s = crop.SIZE;
+    ctx.clearRect(0, 0, s, s);
+    ctx.drawImage(crop.img, crop.x, crop.y, crop.img.width * crop.scale, crop.img.height * crop.scale);
+    // dim outside circle
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, s, s);
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(s/2, s/2, s/2, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    // circle border
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(s/2, s/2, s/2 - 1, 0, Math.PI*2); ctx.stroke();
+}
+
+function applyCrop() {
+    const s = crop.SIZE;
+    const out = document.createElement('canvas');
+    out.width = s; out.height = s;
+    const ctx = out.getContext('2d');
+    ctx.beginPath(); ctx.arc(s/2, s/2, s/2, 0, Math.PI*2); ctx.clip();
+    ctx.drawImage(crop.img, crop.x, crop.y, crop.img.width * crop.scale, crop.img.height * crop.scale);
+    const m = data.members.find(x => x.id === crop.memberId);
+    m.photo = out.toDataURL('image/jpeg', 0.88);
+    save(data);
+    closeCropModal();
+    renderSidebar();
+    renderDetail(crop.memberId);
+    toast('Photo saved');
+}
+
+function clampCrop() {
+    const s = crop.SIZE;
+    const iw = crop.img.width * crop.scale;
+    const ih = crop.img.height * crop.scale;
+    crop.x = Math.min(0, Math.max(s - iw, crop.x));
+    crop.y = Math.min(0, Math.max(s - ih, crop.y));
+}
+
+function onZoomSlider(val) {
+    const s = crop.SIZE;
+    const newScale = crop.minScale * (val / 100);
+    const cx = s / 2, cy = s / 2;
+    crop.x = cx - (cx - crop.x) * (newScale / crop.scale);
+    crop.y = cy - (cy - crop.y) * (newScale / crop.scale);
+    crop.scale = newScale;
+    clampCrop();
+    drawCrop();
+}
+
+function attachCropEvents() {
+    const wrap = document.getElementById('cropWrap');
+    wrap.addEventListener('mousedown', cropMouseDown);
+    wrap.addEventListener('mousemove', cropMouseMove);
+    wrap.addEventListener('mouseup', cropMouseUp);
+    wrap.addEventListener('mouseleave', cropMouseUp);
+    wrap.addEventListener('wheel', cropWheel, { passive: false });
+    wrap.addEventListener('touchstart', cropTouchStart, { passive: false });
+    wrap.addEventListener('touchmove', cropTouchMove, { passive: false });
+    wrap.addEventListener('touchend', cropMouseUp);
+}
+
+function detachCropEvents() {
+    const wrap = document.getElementById('cropWrap');
+    if (!wrap) return;
+    wrap.removeEventListener('mousedown', cropMouseDown);
+    wrap.removeEventListener('mousemove', cropMouseMove);
+    wrap.removeEventListener('mouseup', cropMouseUp);
+    wrap.removeEventListener('mouseleave', cropMouseUp);
+    wrap.removeEventListener('wheel', cropWheel);
+    wrap.removeEventListener('touchstart', cropTouchStart);
+    wrap.removeEventListener('touchmove', cropTouchMove);
+    wrap.removeEventListener('touchend', cropMouseUp);
+}
+
+function cropMouseDown(e) { crop.dragging = true; crop.startX = e.clientX - crop.x; crop.startY = e.clientY - crop.y; }
+function cropMouseMove(e) {
+    if (!crop.dragging) return;
+    crop.x = e.clientX - crop.startX;
+    crop.y = e.clientY - crop.startY;
+    clampCrop(); drawCrop();
+}
+function cropMouseUp() { crop.dragging = false; }
+
+function cropWheel(e) {
+    e.preventDefault();
+    const s = crop.SIZE;
+    const delta = e.deltaY > 0 ? 0.92 : 1.08;
+    const newScale = Math.max(crop.minScale, crop.scale * delta);
+    const rect = e.target.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    crop.x = mx - (mx - crop.x) * (newScale / crop.scale);
+    crop.y = my - (my - crop.y) * (newScale / crop.scale);
+    crop.scale = newScale;
+    document.getElementById('zoomSlider').value = Math.round((crop.scale / crop.minScale) * 100);
+    clampCrop(); drawCrop();
+}
+
+let lastTouchDist = 0;
+function cropTouchStart(e) {
+    e.preventDefault();
+    if (e.touches.length === 1) { crop.dragging = true; crop.startX = e.touches[0].clientX - crop.x; crop.startY = e.touches[0].clientY - crop.y; }
+    if (e.touches.length === 2) { lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+}
+function cropTouchMove(e) {
+    e.preventDefault();
+    if (e.touches.length === 1 && crop.dragging) {
+        crop.x = e.touches[0].clientX - crop.startX;
+        crop.y = e.touches[0].clientY - crop.startY;
+        clampCrop(); drawCrop();
+    }
+    if (e.touches.length === 2) {
+        const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        const newScale = Math.max(crop.minScale, crop.scale * (dist / lastTouchDist));
+        const s = crop.SIZE;
+        crop.x = s/2 - (s/2 - crop.x) * (newScale / crop.scale);
+        crop.y = s/2 - (s/2 - crop.y) * (newScale / crop.scale);
+        crop.scale = newScale;
+        lastTouchDist = dist;
+        document.getElementById('zoomSlider').value = Math.round((crop.scale / crop.minScale) * 100);
+        clampCrop(); drawCrop();
+    }
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -889,6 +1158,7 @@ function toast(msg) {
 // ── Close overlays on backdrop click ──────────────────────────────────────
 document.getElementById('meetingOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeMeetingModal(); });
 document.getElementById('addMemberOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeAddMember(); });
+document.getElementById('cropOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeCropModal(); });
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 renderSidebar();
