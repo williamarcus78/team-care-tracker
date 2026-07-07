@@ -510,19 +510,37 @@
 <script>
 // ── Seed data ──────────────────────────────────────────────────────────────
 const SEED_NAMES = [
-    "Albert Cannon","Alexis Jackson","Annie Hess","Anthony Akinbami",
-    "Brian Pier","Brittany Thomas","Bryce Horton","Bryan Artiles",
-    "Bryant Gilabert","Cameron McLemore","Cassie Payne","Chavez Nelson",
-    "Charles (Levell) Hairston","Charles Hairston","Christian Matheny",
-    "Daniel Pritchett","Darin Harper","Eddie Hill Jr.","Grayton Faust",
-    "Greg Blanchard","Isaiah Douglas","Isaiah Martinez","James Smith",
-    "Jay Nyindodo","Jon Franklin Jones","Keiyoma Dabney","Kenneth Montgomery",
-    "Kristyn Martin","Lillie Auguillard","Loren Clark","Luke Modin",
-    "Mark Freeman","Marvin Palmer","Monicah Bwayi","Niaya Holman",
-    "Porscha Hudson","Rhoda Gatamah","Ricki Fitzpatrick","Samina Russell",
-    "Sean Faust","Steven Williams","Terence Johnson","Terilyn McChriston",
-    "Tiffani Denham","Travis Yu","Trevor Gore","Trinity Robertson",
-    "Wendy Smith","William Perry","Yaw Nyanteh","Zakiya Cherry"
+    "Aaron Turner","Albert Cannon","Alexis Jackson","Angela Lewis","Annie Hess",
+    "Anthony Akinbami","Baronese Stokes","Brandon Jones","Brian Pier",
+    "Brittany Thomas","Bryan Artiles","Bryant Gilabert","Bryce Horton",
+    "Caleb Chunn","Cameron McLemore","Carter Lane","Cassie Payne",
+    "Charles Hairston","Charles (Levell) Hairston","Chavez Nelson",
+    "Christian Matheny","Christina Scott","Christopher Bowles",
+    "Cornell Randle","Cory Phillips","Craig Hawkins","Damien Wynn",
+    "Daniel Pritchett","Daniel Taylor","Darin Harper","Darren Brimm",
+    "David Hayes","David Hooper","Douglas Bedford","Eddie Hill Jr.",
+    "Eddie Johnson","Eric Garrison","Eric Smith","Erica Lockett","Eva Wairimu",
+    "Grayton Faust","Greg Blanchard","Heaven Carroll","Isaiah Douglas",
+    "Isaiah Martinez","Jacquel Nelson","James Adefisoye","James Smith",
+    "Jason Olende","Jay Nyindodo","Jerome Taylor Jr.","Jess Epting",
+    "Jessica Darling","Joey Holley","John Jesuyemi","Jon Franklin Jones",
+    "Joshua Mathis","Judd Doty","Katrina Kelly","Keiyoma Dabney",
+    "Kelley Marshall","Ken Kruzan","Kenneth Montgomery","Kenny Robinson",
+    "Kenny Robinson Jr.","Kimberly Evans","Kortney Goodwin","Kristyn Martin",
+    "Krystina Lesley","Kwanza Ozier","Lakeshia White","Lamaris Paige",
+    "Landon Pilant","Lillie Auguillard","Lisa Garvey","Loren Clark",
+    "Lucy Green","Luke Modin","Maci Rooks","Mark Freeman","Marvin Palmer",
+    "Mason Milliner","Matthew Collier","Memphis Green","Misa Carter",
+    "Monicah Bwayi","Muthoni Gitau","Natrez Crawford","Niaya Holman",
+    "Nicole Campbell","Niya Allen","Nyre Tillman","Ope Adebanjo",
+    "Porscha Hudson","Precious Thompson","Rhoda Gatamah","Rhonda Mathis",
+    "Ricki Fitzpatrick","Ryan Siddell","Salome Kore","Samina Russell",
+    "Sean Faust","Shameka Grant","Shy Wiggins","Stephanie Crutcher",
+    "Steven Williams","Tayler Fairrow","Taylor Chatman","Terence Johnson",
+    "Terilyn McChriston","Terro Walker","Tiffani Denham","Tiffany Jones",
+    "Tim Boyd","Tom Laughner","Tracey Chatman","Travis Yu","Trevor Gore",
+    "Trinity Robertson","Tyler Duckett","Valerie Dailey","Wendy Smith",
+    "William Perry","Yaw Nyanteh","Zakiya Cherry"
 ];
 
 // ── Utilities ──────────────────────────────────────────────────────────────
@@ -559,7 +577,17 @@ function load() {
 }
 function save(d) { localStorage.setItem('tlc_care_v1', JSON.stringify(d)); }
 
+function migrate(d) {
+    const existing = new Set(d.members.map(m => m.name.toLowerCase()));
+    const added = SEED_NAMES.filter(n => !existing.has(n.toLowerCase()));
+    if (!added.length) return;
+    added.forEach(name => d.members.push({ id: uid(), name, location: 'Houston Levee', meetings: [] }));
+    d.members.sort((a, b) => a.name.localeCompare(b.name));
+    save(d);
+}
+
 let data = load();
+migrate(data);
 let activeId = null;
 let searchQ = '';
 let modalMemberId = null;
