@@ -349,6 +349,56 @@
         }
         .lightbox-close:hover { background: rgba(255,255,255,.25); }
 
+        /* ── Dashboard ── */
+        .dashboard { flex: 1; overflow-y: auto; padding: 28px 32px; }
+        .dash-greeting { margin-bottom: 24px; }
+        .dash-greeting h2 { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+        .dash-greeting p { font-size: 13px; color: var(--muted); }
+
+        .dash-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+        .dash-stat {
+            background: white; border: 1px solid var(--border);
+            border-radius: 10px; padding: 16px 18px;
+        }
+        .dash-stat.accent { background: var(--navy); border-color: var(--navy); }
+        .dash-stat.accent .stat-lbl { color: rgba(255,255,255,.6); }
+        .dash-stat.accent .stat-val { color: white; }
+        .dash-stat.accent .stat-hint { color: rgba(255,255,255,.5); }
+
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+        .dash-grid-full { margin-bottom: 18px; }
+
+        .dash-member-row {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 0; border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background .1s; border-radius: 6px;
+            padding-left: 4px; padding-right: 4px;
+        }
+        .dash-member-row:last-child { border-bottom: none; }
+        .dash-member-row:hover { background: var(--bg); }
+        .dash-member-row .m-info { flex: 1; min-width: 0; }
+        .dash-badge {
+            font-size: 11px; font-weight: 600; padding: 2px 8px;
+            border-radius: 10px; flex-shrink: 0;
+        }
+        .dash-badge-gold { background: #fef3c7; color: #92400e; }
+        .dash-badge-muted { background: var(--bg); color: var(--muted); }
+        .dash-empty { font-size: 13px; color: var(--muted); padding: 16px 0; text-align: center; }
+
+        .activity-row {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+        }
+        .activity-row:last-child { border-bottom: none; }
+        .activity-row:hover .activity-name { text-decoration: underline; }
+        .activity-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--gold); flex-shrink: 0; margin-top: 5px;
+        }
+        .activity-name { font-size: 13px; font-weight: 500; }
+        .activity-date { font-size: 11px; color: var(--muted); margin-top: 1px; }
+        .activity-preview { font-size: 12px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+
         /* ── Scrollbar ── */
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -370,7 +420,7 @@
 
 <!-- Header -->
 <div class="header">
-    <h1>Team Care <span>Tracker</span></h1>
+    <h1 onclick="renderDashboard()" style="cursor:pointer" title="Back to dashboard">Team Care <span>Tracker</span></h1>
     <div class="header-right">
         <button class="btn btn-ghost" onclick="exportData()">↓ Export</button>
         <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">↑ Import</button>
@@ -396,13 +446,7 @@
     </div>
 
     <!-- Main -->
-    <div class="main" id="main">
-        <div class="empty-state">
-            <div class="empty-icon">🤝</div>
-            <h3>Select a team member</h3>
-            <p>Pick someone from the list to view their care record and log conversations.</p>
-        </div>
-    </div>
+    <div class="main" id="main"></div>
 </div>
 
 <!-- Meeting Modal -->
@@ -624,6 +668,143 @@ function openFollowUps(m) {
     return out;
 }
 
+// ── Dashboard ──────────────────────────────────────────────────────────────
+function renderDashboard() {
+    activeId = null;
+    renderSidebar();
+
+    const totalMeetings = data.members.reduce((s, m) => s + m.meetings.length, 0);
+    const allOpenFU = data.members.flatMap(m => openFollowUps(m));
+    const lgCount = data.members.filter(m => latestLGRaw(m) === 'yes').length;
+    const connected = data.members.filter(m => m.meetings.length > 0).length;
+
+    const needsAttention = data.members
+        .map(m => ({ m, fus: openFollowUps(m) }))
+        .filter(x => x.fus.length > 0)
+        .sort((a, b) => b.fus.length - a.fus.length)
+        .slice(0, 8);
+
+    const notConnected = data.members
+        .filter(m => m.meetings.length === 0)
+        .slice(0, 10);
+
+    const recentActivity = data.members
+        .flatMap(m => m.meetings.map(mt => ({ ...mt, member: m })))
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 6);
+
+    const greeting = getGreeting();
+
+    document.getElementById('main').innerHTML = `<div class="dashboard">
+        <div class="dash-greeting">
+            <h2>${greeting}</h2>
+            <p>Here's a snapshot of your team care.</p>
+        </div>
+
+        <div class="dash-stats">
+            <div class="dash-stat accent">
+                <div class="stat-lbl">Team Members</div>
+                <div class="stat-val">${data.members.length}</div>
+                <div class="stat-hint">${connected} connected</div>
+            </div>
+            <div class="dash-stat">
+                <div class="stat-lbl">Meetings Logged</div>
+                <div class="stat-val">${totalMeetings}</div>
+                <div class="stat-hint">across all members</div>
+            </div>
+            <div class="dash-stat">
+                <div class="stat-lbl">Open Follow-ups</div>
+                <div class="stat-val" style="color:${allOpenFU.length ? '#c9a84c' : '#16a34a'}">${allOpenFU.length}</div>
+                <div class="stat-hint">action items pending</div>
+            </div>
+            <div class="dash-stat">
+                <div class="stat-lbl">In Life Group</div>
+                <div class="stat-val">${lgCount}</div>
+                <div class="stat-hint">currently attending</div>
+            </div>
+        </div>
+
+        <div class="dash-grid">
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title">⚡ Needs Attention</span>
+                    <span style="font-size:12px;color:var(--muted)">${needsAttention.length} members</span>
+                </div>
+                <div class="card-body" style="padding: 4px 16px">
+                    ${needsAttention.length ? needsAttention.map(({m, fus}) => `
+                        <div class="dash-member-row" onclick="selectMember('${m.id}')">
+                            <div class="avatar" style="background:${avatarBg(m.name)};width:30px;height:30px;font-size:11px;flex-shrink:0">
+                                ${m.photo ? `<img src="${m.photo}" alt="${m.name}">` : initials(m.name)}
+                            </div>
+                            <div class="m-info">
+                                <div class="m-name">${m.name}</div>
+                                <div class="m-sub">${m.location || ''}</div>
+                            </div>
+                            <span class="dash-badge dash-badge-gold">${fus.length} open</span>
+                        </div>`).join('') : `<div class="dash-empty">🎉 No open follow-ups</div>`}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title">👋 Not Yet Connected</span>
+                    <span style="font-size:12px;color:var(--muted)">${data.members.length - connected} members</span>
+                </div>
+                <div class="card-body" style="padding: 4px 16px">
+                    ${notConnected.length ? notConnected.map(m => `
+                        <div class="dash-member-row" onclick="selectMember('${m.id}')">
+                            <div class="avatar" style="background:${avatarBg(m.name)};width:30px;height:30px;font-size:11px;flex-shrink:0">
+                                ${m.photo ? `<img src="${m.photo}" alt="${m.name}">` : initials(m.name)}
+                            </div>
+                            <div class="m-info">
+                                <div class="m-name">${m.name}</div>
+                                <div class="m-sub">${m.location || ''}</div>
+                            </div>
+                            <span class="dash-badge dash-badge-muted">no meetings</span>
+                        </div>`).join('')
+                        + (data.members.length - connected > 10 ? `<div class="dash-empty" style="padding:10px 0">+${data.members.length - connected - 10} more</div>` : '')
+                    : `<div class="dash-empty">✅ Everyone's been contacted</div>`}
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-grid-full">
+            <div class="card">
+                <div class="card-head">
+                    <span class="card-title">🕐 Recent Activity</span>
+                </div>
+                <div class="card-body" style="padding: 4px 20px">
+                    ${recentActivity.length ? recentActivity.map(mt => `
+                        <div class="activity-row" onclick="selectMember('${mt.member.id}')">
+                            <div class="activity-dot"></div>
+                            <div style="flex:1;min-width:0">
+                                <div class="activity-name">${mt.member.name}</div>
+                                <div class="activity-date">${fmtDate(mt.date)}${mt.time ? ' · ' + fmtTime(mt.time) : ''}</div>
+                                ${mt.notes ? `<div class="activity-preview">${mt.notes.replace(/<[^>]+>/g,'').slice(0,80)}${mt.notes.length > 80 ? '…' : ''}</div>` : ''}
+                            </div>
+                        </div>`).join('')
+                    : `<div class="dash-empty" style="padding:20px 0">No meetings logged yet — select a member to get started.</div>`}
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning 👋';
+    if (h < 17) return 'Good afternoon 👋';
+    return 'Good evening 👋';
+}
+
+function latestLGRaw(m) {
+    const sorted = m.meetings.slice().sort((a,b) => new Date(b.date)-new Date(a.date));
+    for (const mt of sorted) {
+        if (mt.lifeGroupAttendance && mt.lifeGroupAttendance !== 'unknown') return mt.lifeGroupAttendance;
+    }
+    return null;
+}
+
 // ── Detail view ────────────────────────────────────────────────────────────
 function selectMember(id) {
     activeId = id;
@@ -708,14 +889,8 @@ function renderDetail(id) {
 }
 
 function latestLG(m) {
-    const sorted = m.meetings.slice().sort((a,b) => new Date(b.date)-new Date(a.date));
-    for (const mt of sorted) {
-        const v = mt.lifeGroupAttendance;
-        if (v && v !== 'unknown') {
-            return {yes:'✅ Attending', no:'❌ Not attending', interested:'🙋 Interested'}[v] || '—';
-        }
-    }
-    return '—';
+    const v = latestLGRaw(m);
+    return {yes:'✅ Attending', no:'❌ Not attending', interested:'🙋 Interested'}[v] || '—';
 }
 
 function meetingHTML(memberId, mt) {
@@ -1189,7 +1364,7 @@ document.getElementById('addMemberOverlay').addEventListener('click', e => { if 
 document.getElementById('cropOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeCropModal(); });
 
 // ── Boot ───────────────────────────────────────────────────────────────────
-renderSidebar();
+renderDashboard();
 </script>
 </body>
 </html>
